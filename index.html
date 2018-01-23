@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CryptoBalance</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue-resource@1.3.5"></script>
+  <style>
+  .vcenter {vertical-align: middle;}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <i v-if="loading">Loading...</i>
+
+    <section id="currencies">
+      <h3>Currency</h3>
+      <p v-if="!coins.length">Add coins to start tweaking currencies</p>
+      <p v-else v-for="currency in activeCurrencies">
+        <span>{{currency.symbol}}/USD</span>
+        <input class="vcenter" type="number" min="0" max="100000" v-model="currency.price_usd">
+        <input class="vcenter" type="range" min="0" max="100000" v-model="currency.price_usd" :name="currency.symbol">
+      </p>
+    </section>
+
+    <section id="balance">
+      <h3>Balance</h3>
+      <form @submit.prevent>
+        <select v-model="newCoin.symbol">
+          <option :value="currency.symbol" v-for="currency in currencies">{{currency.symbol}} ({{currency.name}})</option>
+        </select>
+        <input type="number" v-model="newCoin.amount">
+        <button @click="addCoin()">Add</button>
+      </form>
+    </section>
+
+    <h2 v-if="total">Total: {{total.toFixed(2)}} USD</h2>
+
+    <section id="coins">
+      <div class="coin" v-for="coin in coins">
+        <a href @click.prevent="deleteCoin(coin)">[x]</a>
+        <b>{{coin.amount}}</b> {{coin.symbol}}
+      </div>
+    </section>
+  </div>
+
+  <script>
+    new Vue({
+      el: '#app',
+      data: function() {
+        return {
+          loading: false,
+          coins: [],
+          currencies: [],
+          newCoin: {
+            symbol: 'BTC',
+            amount: 0,
+          }
+        }
+      },
+      mounted: function() {
+        this.loadCoins();
+        this.loadCurrencies();
+      },
+      methods: {
+        addCoin: function() {
+          this.coins.push({
+            symbol: this.newCoin.symbol,
+            amount: this.newCoin.amount
+          })
+          this.newCoin.amount = 0;
+        },
+        deleteCoin: function(coin) {
+          this.coins.splice(this.coins.indexOf(coin), 1)
+        },
+        loadCoins: function() { 
+          // load from localStorage
+          if (!window.localStorage) return;
+          var coins = localStorage.getItem('coins')
+          if (!coins) return;
+          this.coins = JSON.parse(coins)
+        },
+        loadCurrencies: function() {
+          var self = this;
+          this.loading = true;
+          this.$http.get('https://api.coinmarketcap.com/v1/ticker/')
+            .then(function(response) { self.currencies = response.body })
+            .finally(function() { self.loading = false })
+        },
+        getCurrency: function(symbol) {
+          return this.currencies.find(function(currency) {
+            return currency.symbol === symbol
+          })
+        }
+      },
+      computed: {
+        calculable: function() {
+          return this.coins.length && this.currencies.length
+        },
+        total: function() {
+          var self = this;
+          return !this.calculable ? 0 : this.coins
+            .map(function(coin) { return self.getCurrency(coin.symbol).price_usd * coin.amount; })
+            .reduce(function(total, result) { return total + result })
+        },
+        activeCurrencies: function() {
+          var self = this;
+          return this.currencies.filter(function(currency) {
+            return self.coins.some(function(coin) {
+              return coin.symbol === currency.symbol;
+            })
+          })
+        }
+      },
+      watch: {
+        coins: function(coins) {
+          // save to localStorage
+          if (!window.localStorage) return;
+          var payload = JSON.stringify(coins)
+          localStorage.setItem('coins', payload)
+        }
+      }
+    })
+  </script>
+</body>
+</html>
