@@ -4,29 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CryptoBalance</title>
-  <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.10"></script>
   <script src="https://cdn.jsdelivr.net/npm/vue-resource@1.3.5"></script>
-  <style>
-  .vcenter {vertical-align: middle;}
-  </style>
+  <link rel="stylesheet" href="https://unpkg.com/@picocss/pico@latest/css/pico.min.css">
 </head>
 <body>
-  <div id="app">
+  <main class="container" id="app">
     <i v-if="loading">Loading...</i>
 
     <section id="currencies">
-      <h3>Currency</h3>
+      <h3>Tweak</h3>
       <p v-if="!coins.length">Add coins to start tweaking currencies</p>
-      <p v-else v-for="currency in activeCurrencies">
-        <span>{{currency.symbol}}/USD</span>
-        <input class="vcenter" type="number" min="0" max="100000" v-model="currency.price_usd">
-        <input class="vcenter" type="range" min="0" max="100000" v-model="currency.price_usd" :name="currency.symbol">
-      </p>
+      <table v-else v-for="currency in activeCurrencies">
+        <td>{{currency.symbol}}/USD</span>
+        <td>
+          <input type="number" min="0" max="100000" v-model="currency.current_price">
+        </td>
+        <td>
+          <input type="range" min="0" max="100000" v-model="currency.current_price" :name="currency.symbol">
+        </td>
+      </table>
     </section>
 
     <section id="balance">
       <h3>Balance</h3>
-      <form @submit.prevent>
+      <form class="grid" @submit.prevent>
         <select v-model="newCoin.symbol">
           <option :value="currency.symbol" v-for="currency in currencies">{{currency.symbol}} ({{currency.name}})</option>
         </select>
@@ -43,7 +45,7 @@
         <b>{{coin.amount}}</b> {{coin.symbol}}
       </div>
     </section>
-  </div>
+  </main>
 
   <script>
     new Vue({
@@ -84,7 +86,7 @@
         loadCurrencies: function() {
           var self = this;
           this.loading = true;
-          this.$http.get('https://api.coinmarketcap.com/v1/ticker/')
+          this.$http.get('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc')
             .then(function(response) { self.currencies = response.body })
             .finally(function() { self.loading = false })
         },
@@ -101,7 +103,7 @@
         total: function() {
           var self = this;
           return !this.calculable ? 0 : this.coins
-            .map(function(coin) { return self.getCurrency(coin.symbol).price_usd * coin.amount; })
+            .map(function(coin) { return self.getCurrency(coin.symbol).current_price * coin.amount; })
             .reduce(function(total, result) { return total + result })
         },
         activeCurrencies: function() {
